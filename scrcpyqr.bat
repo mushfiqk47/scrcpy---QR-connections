@@ -21,10 +21,10 @@ if errorlevel 1 (
 for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYVER=%%i
 echo [*] Python %PYVER%
 
-python -c "import qrcode; import pystray" 2>nul
+python -c "import qrcode" 2>nul
 if errorlevel 1 (
-    echo [*] Installing qrcode[pil], pillow, pystray...
-    pip install qrcode[pil] pillow pystray
+    echo [*] Installing qrcode[pil], pillow...
+    pip install qrcode[pil] pillow
     if errorlevel 1 ( echo [X] Failed. & pause & exit /b 1 )
 )
 
