@@ -49,14 +49,12 @@ DEFAULT_CONFIG = {
 }
 
 phone_ip = ""
-pair_port = ""
 pair_result = ""
 connect_result = ""
 status_msg = "waiting"
 device_serial = ""
 _pair_password = ""
 app_config = dict(DEFAULT_CONFIG)
-_was_reconnected = False
 _qr_b64 = ""
 _local_ip = ""
 _service_name = ""
@@ -189,7 +187,7 @@ def load_last_connection():
     return None
 
 def try_auto_reconnect():
-    global phone_ip, connect_result, status_msg, _was_reconnected
+    global phone_ip, connect_result, status_msg
 
     saved = load_last_connection()
     if not saved or not saved.get("ip"):
@@ -246,13 +244,12 @@ def try_auto_reconnect():
     return False
 
 def _apply_reconnect(out, new_ip, new_port, device_ip, password, saved):
-    global phone_ip, connect_result, status_msg, _was_reconnected
+    global phone_ip, connect_result, status_msg
     connect_result = out
     phone_ip = f"{new_ip}:{new_port}"
     status_msg = "connected"
     ensure_single_device(device_ip)
     save_last_connection(new_ip, new_port, saved.get("serial", ""), password)
-    _was_reconnected = True
     print(f"[+] Auto-reconnect OK: {phone_ip}")
     return True
 
@@ -496,13 +493,12 @@ def _do_reconnect_flow():
 
 
 def do_pair_via_qr():
-    global phone_ip, pair_port, status_msg
+    global phone_ip, status_msg
     status_msg = "waiting"
     print("[*] Waiting for phone via QR pairing...")
     result = scan_mdns("pairing", timeout=90)
     if result:
         phone_ip = result
-        pair_port = result.split(":")[-1]
         status_msg = "pairing"
         print(f"\n[+] Phone found at {phone_ip}")
         return True
@@ -583,6 +579,11 @@ def do_adb_connect():
 
 def do_pairing_flow(password="", target_serial=""):
     global device_serial, status_msg, _pair_password, phone_ip, connect_result
+    
+    # If already connected, do not start connection flow
+    if status_msg == "connected":
+        return
+
     status_msg = "scanning"
     log_msg("[*] Starting connection flow...")
 
@@ -609,6 +610,8 @@ def do_pairing_flow(password="", target_serial=""):
                     break
 
     if device_serial and "." not in device_serial:
+        if status_msg == "connected":
+            return
         log_msg("[*] USB device found. Using USB-assisted wireless mode...")
         status_msg = "pairing"
 
@@ -625,17 +628,28 @@ def do_pairing_flow(password="", target_serial=""):
             phone_ip = ip_match.group(1)
             log_msg(f"[*] Phone WiFi IP: {phone_ip}")
         else:
+            if status_msg == "connected":
+                return
             status_msg = "error"
             connect_result = "Could not detect phone IP"
             log_msg("[X] Could not detect phone IP over USB.")
+            return
+
+        if status_msg == "connected":
             return
 
         out, err, code = run_adb(["-s", device_serial, "tcpip", "5555"])
         log_msg(f"[*] tcpip 5555: {out}")
         time.sleep(3)
 
+        if status_msg == "connected":
+            return
+
         run_adb(["disconnect"])
         time.sleep(1)
+
+        if status_msg == "connected":
+            return
 
         out, err, code = run_adb(["connect", f"{phone_ip}:5555"])
         connect_result = out or err
@@ -651,23 +665,41 @@ def do_pairing_flow(password="", target_serial=""):
             run_scrcpy()
             return
 
+        if status_msg == "connected":
+            return
         status_msg = "error"
         return
 
     if password:
+        if status_msg == "connected":
+            return
+
         log_msg("[*] Disconnecting stale devices...")
         run_adb(["disconnect"])
         time.sleep(1)
 
+        if status_msg == "connected":
+            return
+
         if not do_pair_via_qr():
+            if status_msg == "connected":
+                return
             status_msg = "error"
             connect_result = "Phone not found via mDNS. Try manual pairing."
             log_msg("[X] QR pairing timeout (90s).")
             return
 
+        if status_msg == "connected":
+            return
+
         if not do_adb_pair(password):
+            if status_msg == "connected":
+                return
             status_msg = "error"
             log_msg("[X] adb pair failed.")
+            return
+
+        if status_msg == "connected":
             return
 
         do_adb_connect()
@@ -744,11 +776,18 @@ def run_tray_icon():
     global _tray_icon
     try:
         import pystray
-        from PIL import Image
+        from PIL import Image, ImageDraw
         icon_path = SCRIPT_DIR / "scrcpy.png"
         if not icon_path.exists():
-            return
-        icon_image = Image.open(icon_path)
+            # Generate a default tray icon image dynamically if scrcpy.png is missing
+            icon_image = Image.new("RGBA", (64, 64), color=(0, 0, 0, 0))
+            draw = ImageDraw.Draw(icon_image)
+            draw.rounded_rectangle([4, 4, 60, 60], radius=12, fill=(30, 28, 25, 255), outline=(197, 165, 114, 255), width=3)
+            draw.rectangle([20, 12, 44, 44], outline=(197, 165, 114, 255), width=2)
+            draw.ellipse([30, 48, 34, 52], fill=(197, 165, 114, 255))
+        else:
+            icon_image = Image.open(icon_path)
+            
         def on_show(icon, item):
             show_console()
         def on_exit(icon, item):
@@ -764,8 +803,64 @@ def run_tray_icon():
     except ImportError:
         pass
 
+def try_auto_reconnect_then_mirror():
+    if try_auto_reconnect():
+        time.sleep(1)
+        run_scrcpy()
+    else:
+        do_pairing_flow(_pair_password)
+
+def device_monitor_loop():
+    global status_msg, phone_ip, device_serial
+    # Allow initial connection flow/auto-reconnect flow to run first
+    time.sleep(6)
+    last_seen_devices = set()
+    while True:
+        try:
+            time.sleep(3)
+            
+            # Check if scrcpy is running
+            scrcpy_running = False
+            with scrcpy_lock:
+                if scrcpy_process and scrcpy_process.poll() is None:
+                    scrcpy_running = True
+            
+            # If scrcpy closed, update status
+            if not scrcpy_running and status_msg == "connected":
+                status_msg = "waiting"
+                log_msg("[*] scrcpy mirror window closed.")
+            
+            # Query active devices via adb
+            out, _, _ = run_adb(["devices"])
+            current_devices = []
+            for line in out.split("\n")[1:]:
+                line = line.strip()
+                if not line or "offline" in line or "unauthorized" in line:
+                    continue
+                if "device" in line:
+                    parts = line.split()
+                    if parts:
+                        current_devices.append(parts[0])
+            
+            newly_appeared = [d for d in current_devices if d not in last_seen_devices]
+            last_seen_devices = set(current_devices)
+            
+            if not scrcpy_running and status_msg in ("waiting", "error"):
+                if newly_appeared:
+                    target = newly_appeared[0]
+                    log_msg(f"[*] New device detected: {target}. Auto-connecting...")
+                    status_msg = "scanning"
+                    threading.Thread(target=do_pairing_flow, args=(_pair_password, target), daemon=True).start()
+                elif current_devices and status_msg == "waiting":
+                    target = current_devices[0]
+                    log_msg(f"[*] Available device detected: {target}. Auto-connecting...")
+                    status_msg = "scanning"
+                    threading.Thread(target=do_pairing_flow, args=(_pair_password, target), daemon=True).start()
+        except Exception as e:
+            log_msg(f"[X] Error in device monitor loop: {e}")
+
 def main():
-    global _pair_password, _was_reconnected, _qr_b64, _local_ip, _service_name
+    global _pair_password, _qr_b64, _local_ip, _service_name
 
     print("=" * 55)
     print("  scrcpy Wireless Phone Mirror")
@@ -829,12 +924,11 @@ def main():
 
     time.sleep(2)
     if saved:
-        def auto_then_pair():
-            if not try_auto_reconnect():
-                do_pairing_flow(password)
-        threading.Thread(target=auto_then_pair, daemon=True).start()
+        threading.Thread(target=try_auto_reconnect_then_mirror, daemon=True).start()
     else:
-        threading.Thread(target=lambda: do_pairing_flow(password), daemon=True).start()
+        threading.Thread(target=lambda: do_pairing_flow(_pair_password), daemon=True).start()
+
+    threading.Thread(target=device_monitor_loop, daemon=True).start()
 
     time.sleep(3)
     threading.Thread(target=run_tray_icon, daemon=True).start()
