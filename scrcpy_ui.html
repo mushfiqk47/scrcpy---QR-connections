@@ -312,6 +312,9 @@
   .setting-row label {
     font-size: 12px;
     color: var(--text-secondary);
+    padding-right: 8px;
+    flex-grow: 1;
+    word-break: break-word;
   }
   .setting-row select,
   .setting-row input[type=text] {
@@ -322,7 +325,8 @@
     padding: 5px 8px;
     font-size: 12px;
     font-family: inherit;
-    width: 120px;
+    width: 160px;
+    flex-shrink: 0;
     transition: border-color 0.15s ease;
   }
   .setting-row select:focus,
@@ -402,6 +406,65 @@
   .tile-logs[open] summary::after { content: '-'; }
   .tile-logs summary:hover { color: var(--text-secondary); }
 
+  .tile-settings {
+    max-height: 85vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) var(--surface-input);
+  }
+  .tile-settings::-webkit-scrollbar {
+    width: 4px;
+  }
+  .tile-settings::-webkit-scrollbar-track {
+    background: var(--surface-input);
+  }
+  .tile-settings::-webkit-scrollbar-thumb {
+    background-color: var(--accent);
+    border-radius: 4px;
+  }
+  
+  .settings-section {
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    margin-bottom: 4px;
+  }
+  .settings-section:last-child {
+    border-bottom: none;
+  }
+  .settings-section summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    list-style: none;
+    user-select: none;
+    transition: color 0.15s ease;
+  }
+  .settings-section summary::-webkit-details-marker { display: none; }
+  .settings-section summary::after {
+    content: '▾';
+    font-size: 12px;
+    color: var(--text-dim);
+    transition: transform 0.2s ease;
+  }
+  .settings-section[open] summary::after {
+    transform: rotate(-180deg);
+  }
+  .settings-section summary:hover {
+    color: var(--accent);
+  }
+  .settings-section-content {
+    padding: 4px 0 10px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
   /* ---- Responsive ---- */
   @media (max-width: 820px) {
     body { padding: 12px; }
@@ -433,6 +496,7 @@
     <div class="tile tile-settings" id="settingsPanel">
       <span class="tile-label">Settings</span>
       <div class="settings-body">
+        <!-- Presets -->
         <div class="setting-row" style="margin-bottom: 8px;">
           <label>Quick Presets</label>
           <div style="display: flex; gap: 6px;">
@@ -442,62 +506,222 @@
           </div>
         </div>
         <div class="settings-divider"></div>
-        <div class="setting-row"><label>Max size</label>
-          <select id="s_max_size">
-            <option value="0">Original</option>
-            <option value="480">480p</option>
-            <option value="720">720p</option>
-            <option value="1080">1080p</option>
-            <option value="1440">1440p</option>
-            <option value="1920">1920p</option>
-          </select></div>
-        <div class="setting-row"><label>Bitrate</label>
-          <select id="s_bit_rate">
-            <option value="2M">2 Mbps</option>
-            <option value="4M">4 Mbps</option>
-            <option value="8M">8 Mbps</option>
-            <option value="16M">16 Mbps</option>
-            <option value="32M">32 Mbps</option>
-            <option value="50M">50 Mbps</option>
-          </select></div>
-        <div class="setting-row"><label>Max FPS</label>
-          <select id="s_max_fps">
-            <option value="30">30</option>
-            <option value="60">60</option>
-            <option value="90">90</option>
-            <option value="120">120</option>
-            <option value="0">Unlimited</option>
-          </select></div>
-        <div class="settings-divider"></div>
-        <div class="setting-row"><label>Audio</label>
-          <input type="checkbox" id="s_audio"></div>
-        <div class="setting-row"><label>Screen off</label>
-          <input type="checkbox" id="s_turn_screen_off"></div>
-        <div class="setting-row"><label>Stay awake</label>
-          <input type="checkbox" id="s_stay_awake"></div>
-        <div class="setting-row"><label>Fullscreen</label>
-          <input type="checkbox" id="s_fullscreen"></div>
-        <div class="setting-row"><label>Always on top</label>
-          <input type="checkbox" id="s_always_on_top"></div>
-        <div class="setting-row"><label>View only</label>
-          <input type="checkbox" id="s_no_control"></div>
-        <div class="settings-divider"></div>
-        <div class="setting-row"><label>Record</label>
-          <input type="checkbox" id="s_record" onchange="toggleRecordPath()"></div>
-        <div class="setting-row" id="recordPathRow" style="display:none">
-          <label>Save to</label>
-          <input type="text" id="s_record_path" placeholder="file.mp4"></div>
-        <div class="setting-row"><label>Crop</label>
-          <input type="text" id="s_crop" placeholder="W:H:X:Y"></div>
-        <div class="setting-row"><label>Orientation</label>
-          <select id="s_lock_video_orientation">
-            <option value="0">Unlocked</option>
-            <option value="1">Portrait</option>
-            <option value="2">Landscape</option>
-          </select></div>
-        <div class="setting-row"><label>Window title</label>
-          <input type="text" id="s_window_title" placeholder="default"></div>
-        <button class="btn-save" onclick="saveSettings()">Save</button>
+
+        <!-- 🎥 Video Section -->
+        <details class="settings-section" open>
+          <summary>🎥 Video Settings</summary>
+          <div class="settings-section-content">
+            <div class="setting-row">
+              <label>Video Source</label>
+              <select id="s_video_source" onchange="toggleCameraSection()">
+                <option value="display">Display Screen</option>
+                <option value="camera">Device Camera</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label>Video Codec</label>
+              <select id="s_video_codec">
+                <option value="h264">H.264</option>
+                <option value="h265">H.265</option>
+                <option value="av1">AV1</option>
+                <option value="vp8">VP8</option>
+                <option value="vp9">VP9</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label>Max size</label>
+              <select id="s_max_size">
+                <option value="0">Original</option>
+                <option value="480">480p</option>
+                <option value="720">720p</option>
+                <option value="1080">1080p</option>
+                <option value="1440">1440p</option>
+                <option value="1920">1920p</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label>Bitrate</label>
+              <select id="s_bit_rate">
+                <option value="2M">2 Mbps</option>
+                <option value="4M">4 Mbps</option>
+                <option value="8M">8 Mbps</option>
+                <option value="16M">16 Mbps</option>
+                <option value="32M">32 Mbps</option>
+                <option value="50M">50 Mbps</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label>Max FPS</label>
+              <select id="s_max_fps">
+                <option value="30">30</option>
+                <option value="60">60</option>
+                <option value="90">90</option>
+                <option value="120">120</option>
+                <option value="0">Unlimited</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label>Crop</label>
+              <input type="text" id="s_crop" placeholder="W:H:X:Y">
+            </div>
+            <div class="setting-row">
+              <label>Orientation</label>
+              <select id="s_lock_video_orientation">
+                <option value="0">Unlocked</option>
+                <option value="1">Portrait</option>
+                <option value="2">Landscape</option>
+              </select>
+            </div>
+          </div>
+        </details>
+
+        <!-- 📷 Camera Options -->
+        <details class="settings-section" id="sec_camera" style="display: none;">
+          <summary>📷 Camera Options</summary>
+          <div class="settings-section-content">
+            <div class="setting-row">
+              <label>Facing</label>
+              <select id="s_camera_facing">
+                <option value="any">Any</option>
+                <option value="front">Front</option>
+                <option value="back">Back</option>
+                <option value="external">External</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label>Camera ID</label>
+              <input type="text" id="s_camera_id" placeholder="0">
+            </div>
+            <div class="setting-row">
+              <label>Resolution</label>
+              <input type="text" id="s_camera_size" placeholder="1920x1080">
+            </div>
+            <div class="setting-row">
+              <label>Camera FPS</label>
+              <input type="text" id="s_camera_fps" placeholder="30">
+            </div>
+            <div class="setting-row">
+              <label>Camera Zoom</label>
+              <input type="text" id="s_camera_zoom" placeholder="1.0">
+            </div>
+            <div class="setting-row">
+              <label>Camera Torch</label>
+              <input type="checkbox" id="s_camera_torch">
+            </div>
+            <div class="setting-row">
+              <label>High Speed Mode</label>
+              <input type="checkbox" id="s_camera_high_speed">
+            </div>
+          </div>
+        </details>
+
+        <!-- 🔊 Audio Section -->
+        <details class="settings-section" open>
+          <summary>🔊 Audio Settings</summary>
+          <div class="settings-section-content">
+            <div class="setting-row">
+              <label>Enable Audio</label>
+              <input type="checkbox" id="s_audio">
+            </div>
+            <div class="setting-row">
+              <label>Audio Source</label>
+              <select id="s_audio_source">
+                <option value="output">System Output (Default)</option>
+                <option value="playback">Playback (Internal Audio)</option>
+                <option value="mic">Microphone</option>
+                <option value="mic-unprocessed">Microphone (Raw)</option>
+                <option value="mic-camcorder">Mic tuned for Camera</option>
+                <option value="mic-voice-recognition">Voice Recognition</option>
+                <option value="mic-voice-communication">Voice Communication</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label>Audio Codec</label>
+              <select id="s_audio_codec">
+                <option value="opus">Opus</option>
+                <option value="aac">AAC</option>
+                <option value="flac">FLAC</option>
+                <option value="raw">Raw PCM</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label>Audio Bitrate</label>
+              <input type="text" id="s_audio_bit_rate" placeholder="128k">
+            </div>
+            <div class="setting-row">
+              <label>Audio Buffer (ms)</label>
+              <input type="text" id="s_audio_buffer" placeholder="0">
+            </div>
+            <div class="setting-row">
+              <label>Audio Duplication</label>
+              <input type="checkbox" id="s_audio_dup">
+            </div>
+          </div>
+        </details>
+
+        <!-- 💻 Window & Control Settings -->
+        <details class="settings-section" open>
+          <summary>💻 Window & Control</summary>
+          <div class="settings-section-content">
+            <div class="setting-row">
+              <label>Fullscreen</label>
+              <input type="checkbox" id="s_fullscreen">
+            </div>
+            <div class="setting-row">
+              <label>Always on top</label>
+              <input type="checkbox" id="s_always_on_top">
+            </div>
+            <div class="setting-row">
+              <label>View only (No control)</label>
+              <input type="checkbox" id="s_no_control">
+            </div>
+            <div class="setting-row">
+              <label>Borderless Window</label>
+              <input type="checkbox" id="s_window_borderless">
+            </div>
+            <div class="setting-row">
+              <label>Show Touches</label>
+              <input type="checkbox" id="s_show_touches">
+            </div>
+            <div class="setting-row">
+              <label>Turn screen off</label>
+              <input type="checkbox" id="s_turn_screen_off">
+            </div>
+            <div class="setting-row">
+              <label>Screen Off Timeout (s)</label>
+              <input type="text" id="s_screen_off_timeout" placeholder="600">
+            </div>
+            <div class="setting-row">
+              <label>Stay awake</label>
+              <input type="checkbox" id="s_stay_awake">
+            </div>
+            <div class="setting-row">
+              <label>Time Limit (s)</label>
+              <input type="text" id="s_time_limit" placeholder="none">
+            </div>
+            <div class="setting-row">
+              <label>Window title</label>
+              <input type="text" id="s_window_title" placeholder="default">
+            </div>
+          </div>
+        </details>
+
+        <!-- 🔴 Recording Settings -->
+        <details class="settings-section">
+          <summary>🔴 Record Options</summary>
+          <div class="settings-section-content">
+            <div class="setting-row">
+              <label>Record Mirror</label>
+              <input type="checkbox" id="s_record" onchange="toggleRecordPath()">
+            </div>
+            <div class="setting-row" id="recordPathRow" style="display:none">
+              <label>Save to</label>
+              <input type="text" id="s_record_path" placeholder="file.mp4">
+            </div>
+          </div>
+        </details>
+
+        <button class="btn-save" onclick="saveSettings()">Save & Apply</button>
       </div>
     </div>
   </div>
@@ -651,7 +875,38 @@ function applyConfig(cfg) {
   g('s_crop').value = cfg.crop || '';
   g('s_lock_video_orientation').value = String(cfg.lock_video_orientation || 0);
   g('s_window_title').value = cfg.window_title || '';
+  
+  // New Video/Camera configurations
+  g('s_video_source').value = cfg.video_source || 'display';
+  g('s_video_codec').value = cfg.video_codec || 'h264';
+  g('s_camera_facing').value = cfg.camera_facing || 'any';
+  g('s_camera_id').value = cfg.camera_id || '';
+  g('s_camera_size').value = cfg.camera_size || '';
+  g('s_camera_fps').value = cfg.camera_fps || '';
+  g('s_camera_zoom').value = cfg.camera_zoom || '';
+  g('s_camera_torch').checked = !!cfg.camera_torch;
+  g('s_camera_high_speed').checked = !!cfg.camera_high_speed;
+  
+  // New Audio configurations
+  g('s_audio_source').value = cfg.audio_source || 'output';
+  g('s_audio_codec').value = cfg.audio_codec || 'opus';
+  g('s_audio_bit_rate').value = cfg.audio_bit_rate || '';
+  g('s_audio_buffer').value = cfg.audio_buffer || '';
+  g('s_audio_dup').checked = !!cfg.audio_dup;
+  
+  // New Window/Control configurations
+  g('s_window_borderless').checked = !!cfg.window_borderless;
+  g('s_show_touches').checked = !!cfg.show_touches;
+  g('s_time_limit').value = cfg.time_limit || '';
+  g('s_screen_off_timeout').value = cfg.screen_off_timeout || '';
+  
   toggleRecordPath();
+  toggleCameraSection();
+}
+
+function toggleCameraSection() {
+  const source = g('s_video_source').value;
+  g('sec_camera').style.display = source === 'camera' ? 'block' : 'none';
 }
 
 /* ---- Status UI ---- */
@@ -667,9 +922,6 @@ function poll() {
   fetch('/status').then(r => r.json()).then(d => {
     if (d.status === 'connected') {
       setStatusUI('Connected - ' + d.phone_ip, 'connected');
-      // Hide QR once connected
-      const qr = document.getElementById('qrTile');
-      if (qr) qr.style.display = 'none';
     } else if (d.status === 'reconnecting') {
       setStatusUI('Reconnecting...', 'reconnecting');
     } else if (d.status === 'pairing') {
@@ -739,6 +991,30 @@ function readSettings() {
     crop: g('s_crop').value.trim(),
     lock_video_orientation: parseInt(g('s_lock_video_orientation').value) || 0,
     window_title: g('s_window_title').value.trim(),
+    
+    // New Video/Camera configurations
+    video_source: g('s_video_source').value,
+    video_codec: g('s_video_codec').value,
+    camera_facing: g('s_camera_facing').value,
+    camera_id: g('s_camera_id').value.trim(),
+    camera_size: g('s_camera_size').value.trim(),
+    camera_fps: parseInt(g('s_camera_fps').value) || null,
+    camera_zoom: g('s_camera_zoom').value.trim(),
+    camera_torch: g('s_camera_torch').checked,
+    camera_high_speed: g('s_camera_high_speed').checked,
+    
+    // New Audio configurations
+    audio_source: g('s_audio_source').value,
+    audio_codec: g('s_audio_codec').value,
+    audio_bit_rate: g('s_audio_bit_rate').value.trim(),
+    audio_buffer: parseInt(g('s_audio_buffer').value) || null,
+    audio_dup: g('s_audio_dup').checked,
+    
+    // New Window/Control configurations
+    window_borderless: g('s_window_borderless').checked,
+    show_touches: g('s_show_touches').checked,
+    time_limit: parseInt(g('s_time_limit').value) || null,
+    screen_off_timeout: parseInt(g('s_screen_off_timeout').value) || null,
   };
 }
 
@@ -775,7 +1051,20 @@ function setupAutoSaveListeners() {
     's_turn_screen_off', 's_stay_awake', 's_fullscreen', 
     's_always_on_top', 's_no_control', 's_record', 
     's_record_path', 's_crop', 's_lock_video_orientation', 
-    's_window_title'
+    's_window_title',
+    
+    // New Video/Camera configurations
+    's_video_source', 's_video_codec', 's_camera_facing',
+    's_camera_id', 's_camera_size', 's_camera_fps', 's_camera_zoom',
+    's_camera_torch', 's_camera_high_speed',
+    
+    // New Audio configurations
+    's_audio_source', 's_audio_codec', 's_audio_bit_rate',
+    's_audio_buffer', 's_audio_dup',
+    
+    // New Window/Control configurations
+    's_window_borderless', 's_show_touches', 's_time_limit',
+    's_screen_off_timeout'
   ];
   formElements.forEach(id => {
     const el = g(id);
