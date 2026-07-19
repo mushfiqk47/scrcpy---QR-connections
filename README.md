@@ -10,8 +10,9 @@ A simple, user-friendly Web Interface for **scrcpy** to pair, connect, and mirro
 2. **Extract:** Extract the downloaded `.zip` file to any folder on your computer.
 3. **Copy Helper Files:** Place the following files from this repository directly inside the extracted folder (next to `scrcpy.exe` and `adb.exe`):
    * `scrcpyqr.bat`
-   * `scrcpy_qr_pair.py`
+   * `main.py`
    * `scrcpy_ui.html`
+   * `scrcpy_helper/` (the entire folder)
 
 ---
 
