@@ -1,0 +1,16 @@
+# Binaries and libraries
+*.exe
+*.dll
+scrcpy-server
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local settings and credential caches
+*.json
+last_ip.txt
+*.log
+*.mp4

@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>scrcpy - Wireless Mirror</title>
+<style>
+  *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --base: #141210;
+    --surface: #1e1c19;
+    --surface-raised: #28261f;
+    --surface-input: #1a1815;
+    --text-primary: #e8e4de;
+    --text-secondary: #8a857a;
+    --text-dim: #5c5750;
+    --accent: #c5a572;
+    --accent-dim: rgba(197,165,114,0.12);
+    --success: #6b8f71;
+    --success-dim: rgba(107,143,113,0.12);
+    --error: #a06058;
+    --error-dim: rgba(160,96,88,0.12);
+    --info: #7a8b9a;
+    --info-dim: rgba(122,139,154,0.12);
+    --radius: 12px;
+    --gap: 8px;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--base);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- Bento Grid ---- */
+  .bento {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--gap);
+    max-width: 640px;
+    width: 100%;
+  }
+
+  .tile {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+
+  .tile-label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+
+  /* ---- Header ---- */
+  .tile-header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+  }
+  .tile-header h1 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  .net-info {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: right;
+    line-height: 1.5;
+  }
+
+  /* ---- Device chooser: saved device tile ---- */
+  .tile-saved {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .bento.has-saved .tile-saved { display: flex; }
+
+  .saved-ip {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+    word-break: break-all;
+  }
+  .saved-time {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .saved-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: auto;
+  }
+  .btn-use-saved {
+    padding: 10px 0;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s ease;
+    width: 100%;
+  }
+  .btn-use-saved:hover { background: rgba(197,165,114,0.2); }
+
+  .btn-forget {
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 4px 0;
+    font-family: inherit;
+    text-align: center;
+    transition: color 0.15s ease;
+  }
+  .btn-forget:hover { color: var(--error); }
+
+  /* ---- QR tile ---- */
+  .tile-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+  /* When no saved device, QR spans full width and gets 2 rows */
+  .bento:not(.has-saved) .tile-qr {
+    grid-column: 1 / -1;
+  }
+  .bento.has-saved .tile-qr .tile-label {
+    display: block;
+  }
+  .bento:not(.has-saved) .tile-qr .tile-label {
+    display: none;
+  }
+
+  .qr-frame {
+    background: #fff;
+    border-radius: 10px;
+    padding: 14px;
+    line-height: 0;
+  }
+  .qr-frame img {
+    width: 200px;
+    height: 200px;
+    display: block;
+  }
+  .qr-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+    line-height: 1.5;
+    max-width: 260px;
+  }
+  .qr-hint strong {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* ---- Status tile ---- */
+  .tile-status {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--text-dim);
+    transition: background 0.3s ease;
+  }
+  .status-dot.waiting { background: var(--info); }
+  .status-dot.connected { background: var(--success); }
+  .status-dot.error { background: var(--error); }
+  .status-dot.pairing { background: var(--accent); }
+  .status-dot.reconnecting { background: var(--info); }
+  .status-dot.scanning { background: var(--accent); }
+  #statusText {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+  .btn-retry {
+    display: block;
+    width: 100%;
+    padding: 8px 0;
+    background: var(--surface-raised);
+    color: var(--text-secondary);
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s ease, color 0.15s ease;
+    margin-top: auto;
+  }
+  .btn-retry:hover {
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  /* ---- Manual pair tile ---- */
+  .tile-manual { }
+  .manual-hint {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+  .manual-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .manual-fields input {
+    background: var(--surface-input);
+    border: 1px solid var(--surface-raised);
+    border-radius: 6px;
+    color: var(--text-primary);
+    padding: 8px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    width: 100%;
+    transition: border-color 0.15s ease;
+  }
+  .manual-fields input::placeholder { color: var(--text-dim); }
+  .manual-fields input:focus { border-color: var(--accent); outline: none; }
+  .btn-manual {
+    padding: 8px 0;
+    background: var(--surface-raised);
+    color: var(--text-secondary);
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    width: 100%;
+    transition: background 0.15s ease, color 0.15s ease;
+    margin-top: 4px;
+  }
+  .btn-manual:hover { background: var(--accent-dim); color: var(--accent); }
+
+  /* ---- Settings tile ---- */
+  .tile-settings {
+    padding: 0;
+  }
+  .tile-settings summary {
+    display: block;
+    padding: 20px 24px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+    list-style: none;
+    transition: color 0.15s ease;
+    user-select: none;
+  }
+  .tile-settings summary::-webkit-details-marker { display: none; }
+  .tile-settings summary::after {
+    content: '+';
+    float: right;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-dim);
+  }
+  .tile-settings[open] summary::after { content: '-'; }
+  .tile-settings summary:hover { color: var(--text-secondary); }
+  .settings-body {
+    padding: 0 24px 20px;
+  }
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+  }
+  .setting-row label {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .setting-row select,
+  .setting-row input[type=text] {
+    background: var(--surface-input);
+    border: 1px solid var(--surface-raised);
+    border-radius: 6px;
+    color: var(--text-primary);
+    padding: 5px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    width: 120px;
+    transition: border-color 0.15s ease;
+  }
+  .setting-row select:focus,
+  .setting-row input[type=text]:focus {
+    border-color: var(--accent);
+    outline: none;
+  }
+  .setting-row input[type=checkbox] {
+    accent-color: var(--accent);
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+  }
+  .settings-divider {
+    height: 1px;
+    background: var(--surface-raised);
+    margin: 10px 0;
+    opacity: 0.5;
+  }
+  .btn-save {
+    display: block;
+    width: 100%;
+    padding: 8px 0;
+    background: var(--success-dim);
+    color: var(--success);
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    margin-top: 10px;
+    transition: background 0.15s ease;
+  }
+  .btn-save:hover { background: rgba(107,143,113,0.2); }
+
+  /* ---- Presets and Logs ---- */
+  .btn-preset {
+    background: var(--surface-raised);
+    border: 1px solid var(--surface-input);
+    color: var(--text-secondary);
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn-preset:hover {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .tile-logs {
+    padding: 0;
+  }
+  .tile-logs summary {
+    display: block;
+    padding: 20px 24px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+    list-style: none;
+    transition: color 0.15s ease;
+    user-select: none;
+  }
+  .tile-logs summary::-webkit-details-marker { display: none; }
+  .tile-logs summary::after {
+    content: '+';
+    float: right;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-dim);
+  }
+  .tile-logs[open] summary::after { content: '-'; }
+  .tile-logs summary:hover { color: var(--text-secondary); }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 560px) {
+    body { padding: 12px; }
+    .bento {
+      grid-template-columns: 1fr;
+      max-width: 400px;
+    }
+    .tile-header,
+    .tile-saved,
+    .tile-qr,
+    .tile-status,
+    .tile-manual,
+    .tile-settings,
+    .tile-logs { grid-column: 1 !important; }
+    .bento:not(.has-saved) .tile-qr { grid-column: 1 !important; }
+  }
+</style>
+
+</head>
+<body>
+
+<div class="bento" id="app">
+
+  <!-- Header -->
+  <div class="tile tile-header" style="display: flex; flex-direction: column; align-items: stretch; gap: 10px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+      <h1>scrcpy</h1>
+      <div class="net-info" id="netInfo">loading...</div>
+    </div>
+    <div id="deviceSelectorRow" style="display: none; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--surface-raised); width: 100%;">
+      <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase;">Active Device</span>
+      <select id="deviceSelect" onchange="switchDevice()" style="background: var(--surface-input); border: 1px solid var(--surface-raised); border-radius: 6px; color: var(--text-primary); padding: 4px 8px; font-size: 11px; max-width: 200px;">
+        <option value="">Auto-Detect Device</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Saved device (hidden by default, shown via .has-saved class on .bento) -->
+  <div class="tile tile-saved" id="savedTile">
+    <span class="tile-label">Saved device</span>
+    <span class="saved-ip" id="savedIp"></span>
+    <span class="saved-time" id="savedTime"></span>
+    <div class="saved-actions">
+      <button class="btn-use-saved" onclick="connectSaved()">Connect</button>
+      <button class="btn-forget" onclick="forgetDevice()">forget this device</button>
+    </div>
+  </div>
+
+  <!-- QR Code (spans full width when no saved device) -->
+  <div class="tile tile-qr" id="qrTile">
+    <span class="tile-label">Or pair a new device</span>
+    <div class="qr-frame" id="qrFrame">
+      <img id="qrImg" src="" alt="QR code for wireless pairing">
+    </div>
+    <p class="qr-hint">Scan from <strong>Wireless debugging</strong> in Developer Settings, not your camera</p>
+  </div>
+
+  <!-- Status -->
+  <div class="tile tile-status">
+    <span class="tile-label">Status</span>
+    <div class="status-row">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Loading...</span>
+    </div>
+    <div style="display: flex; gap: 8px; margin-top: auto; padding-top: 10px; width: 100%;">
+      <button class="btn-retry" onclick="startConnect()" style="flex: 2; margin-top: 0; width: auto;">Reconnect</button>
+      <button class="btn-retry" onclick="resetADB()" style="flex: 1.2; margin-top: 0; background: var(--error-dim); color: var(--error); border: 1px solid rgba(160,96,88,0.3); width: auto;">Reset ADB</button>
+    </div>
+  </div>
+
+  <!-- Manual Pair -->
+  <div class="tile tile-manual">
+    <span class="tile-label">Manual pair</span>
+    <p class="manual-hint">If QR fails: Wireless debugging, then Pair with pairing code</p>
+    <div class="manual-fields">
+      <input type="text" id="manualAddr" placeholder="192.168.1.100:37043">
+      <input type="text" id="manualCode" placeholder="6-digit code">
+      <button class="btn-manual" onclick="manualPair()">Pair</button>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <details class="tile tile-settings" id="settingsPanel">
+    <summary>Settings</summary>
+    <div class="settings-body">
+      <div class="setting-row" style="margin-bottom: 8px;">
+        <label>Quick Presets</label>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn-preset" type="button" onclick="applyPreset('gaming')">Gaming</button>
+          <button class="btn-preset" type="button" onclick="applyPreset('balanced')">Balanced</button>
+          <button class="btn-preset" type="button" onclick="applyPreset('eco')">Eco</button>
+        </div>
+      </div>
+      <div class="settings-divider"></div>
+      <div class="setting-row"><label>Max size</label>
+        <select id="s_max_size">
+          <option value="0">Original</option>
+          <option value="480">480p</option>
+          <option value="720">720p</option>
+          <option value="1080">1080p</option>
+          <option value="1440">1440p</option>
+          <option value="1920">1920p</option>
+        </select></div>
+      <div class="setting-row"><label>Bitrate</label>
+        <select id="s_bit_rate">
+          <option value="2M">2 Mbps</option>
+          <option value="4M">4 Mbps</option>
+          <option value="8M">8 Mbps</option>
+          <option value="16M">16 Mbps</option>
+          <option value="32M">32 Mbps</option>
+          <option value="50M">50 Mbps</option>
+        </select></div>
+      <div class="setting-row"><label>Max FPS</label>
+        <select id="s_max_fps">
+          <option value="30">30</option>
+          <option value="60">60</option>
+          <option value="90">90</option>
+          <option value="120">120</option>
+          <option value="0">Unlimited</option>
+        </select></div>
+      <div class="settings-divider"></div>
+      <div class="setting-row"><label>Audio</label>
+        <input type="checkbox" id="s_audio"></div>
+      <div class="setting-row"><label>Screen off</label>
+        <input type="checkbox" id="s_turn_screen_off"></div>
+      <div class="setting-row"><label>Stay awake</label>
+        <input type="checkbox" id="s_stay_awake"></div>
+      <div class="setting-row"><label>Fullscreen</label>
+        <input type="checkbox" id="s_fullscreen"></div>
+      <div class="setting-row"><label>Always on top</label>
+        <input type="checkbox" id="s_always_on_top"></div>
+      <div class="setting-row"><label>View only</label>
+        <input type="checkbox" id="s_no_control"></div>
+      <div class="settings-divider"></div>
+      <div class="setting-row"><label>Record</label>
+        <input type="checkbox" id="s_record" onchange="toggleRecordPath()"></div>
+      <div class="setting-row" id="recordPathRow" style="display:none">
+        <label>Save to</label>
+        <input type="text" id="s_record_path" placeholder="file.mp4"></div>
+      <div class="setting-row"><label>Crop</label>
+        <input type="text" id="s_crop" placeholder="W:H:X:Y"></div>
+      <div class="setting-row"><label>Orientation</label>
+        <select id="s_lock_video_orientation">
+          <option value="0">Unlocked</option>
+          <option value="1">Portrait</option>
+          <option value="2">Landscape</option>
+        </select></div>
+      <div class="setting-row"><label>Window title</label>
+        <input type="text" id="s_window_title" placeholder="default"></div>
+      <button class="btn-save" onclick="saveSettings()">Save</button>
+    </div>
+  </details>
+
+  <!-- Logs & Diagnostics -->
+  <details class="tile tile-logs" id="logsPanel" style="grid-column: 1 / -1; padding: 0;">
+    <summary>Live Console Logs</summary>
+    <div style="padding: 0 24px 20px;">
+      <div id="logsConsole" style="background: var(--surface-input); border: 1px solid var(--surface-raised); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11px; height: 180px; overflow-y: auto; color: var(--text-secondary); line-height: 1.5; white-space: pre-wrap;">loading logs...</div>
+    </div>
+  </details>
+
+</div>
+
+<script>
+/* ---- State ---- */
+let initData = null;
+let currentSelectedSerial = "";
+let saveTimeout = null;
+
+/* ---- Init: fetch everything from backend ---- */
+async function init() {
+  try {
+    const res = await fetch('/init');
+    initData = await res.json();
+    populatePage(initData);
+    setupAutoSaveListeners();
+    pollDevices();
+    pollLogs();
+  } catch (e) {
+    setStatusUI('Failed to load', 'error');
+  }
+  setInterval(poll, 2000);
+  setInterval(pollDevices, 3000);
+  setInterval(pollLogs, 1500);
+}
+
+/* ---- Populate all dynamic content ---- */
+function populatePage(d) {
+  // Network info
+  document.getElementById('netInfo').innerHTML =
+    d.local_ip + '<br>' + d.service_name;
+
+  // QR code
+  document.getElementById('qrImg').src =
+    'data:image/png;base64,' + d.qr_b64;
+
+  // Saved device
+  const app = document.getElementById('app');
+  if (d.saved_device && d.saved_device.ip) {
+    app.classList.add('has-saved');
+    const devName = d.saved_device.device_name || "Android Device";
+    document.getElementById('savedIp').textContent = devName + " (" + d.saved_device.ip + ")";
+    document.getElementById('savedTime').textContent =
+      "Last connection: " + (d.saved_device.timestamp || '');
+  } else {
+    app.classList.remove('has-saved');
+  }
+
+  // Status
+  if (d.status === 'reconnecting') {
+    setStatusUI('Reconnecting to saved device...', 'reconnecting');
+  } else if (d.status === 'connected') {
+    setStatusUI('Connected', 'connected');
+  } else {
+    setStatusUI('Waiting for phone...', 'waiting');
+  }
+
+  // Settings
+  applyConfig(d.config);
+}
+
+/* ---- Apply config to form ---- */
+function applyConfig(cfg) {
+  if (!cfg) return;
+  g('s_max_size').value = String(cfg.max_size || 0);
+  g('s_bit_rate').value = cfg.bit_rate || '8M';
+  g('s_max_fps').value = String(cfg.max_fps || 0);
+  g('s_audio').checked = cfg.audio !== false;
+  g('s_turn_screen_off').checked = !!cfg.turn_screen_off;
+  g('s_stay_awake').checked = !!cfg.stay_awake;
+  g('s_fullscreen').checked = !!cfg.fullscreen;
+  g('s_always_on_top').checked = !!cfg.always_on_top;
+  g('s_no_control').checked = !!cfg.no_control;
+  g('s_record').checked = !!cfg.record;
+  g('s_record_path').value = cfg.record_path || '';
+  g('s_crop').value = cfg.crop || '';
+  g('s_lock_video_orientation').value = String(cfg.lock_video_orientation || 0);
+  g('s_window_title').value = cfg.window_title || '';
+  toggleRecordPath();
+}
+
+/* ---- Status UI ---- */
+function setStatusUI(text, state) {
+  const dot = document.getElementById('statusDot');
+  const label = document.getElementById('statusText');
+  if (label) label.textContent = text;
+  if (dot) dot.className = 'status-dot ' + (state || '');
+}
+
+/* ---- Polling ---- */
+function poll() {
+  fetch('/status').then(r => r.json()).then(d => {
+    if (d.status === 'connected') {
+      setStatusUI('Connected - ' + d.phone_ip, 'connected');
+      // Hide QR once connected
+      const qr = document.getElementById('qrTile');
+      if (qr) qr.style.display = 'none';
+    } else if (d.status === 'reconnecting') {
+      setStatusUI('Reconnecting...', 'reconnecting');
+    } else if (d.status === 'pairing') {
+      setStatusUI('Pairing...', 'pairing');
+    } else if (d.status === 'scanning') {
+      setStatusUI('Scanning...', 'scanning');
+    } else if (d.status === 'error') {
+      setStatusUI('Error: ' + d.result, 'error');
+    }
+  }).catch(() => {});
+}
+
+/* ---- Connect to saved device ---- */
+function connectSaved() {
+  setStatusUI('Reconnecting...', 'reconnecting');
+  fetch('/reconnect').then(() => {});
+}
+
+/* ---- Retry / force new connect ---- */
+  function startConnect() {
+    setStatusUI('Connecting...', 'pairing');
+    fetch('/connect?serial=' + encodeURIComponent(currentSelectedSerial)).then(() => {});
+  }
+
+/* ---- Manual pair ---- */
+function manualPair() {
+  const a = document.getElementById('manualAddr').value.trim();
+  const c = document.getElementById('manualCode').value.trim();
+  if (!a || !c) { setStatusUI('Enter IP:Port and code', 'error'); return; }
+  if (!a.includes(':')) { setStatusUI('Use format IP:Port', 'error'); return; }
+  setStatusUI('Pairing ' + a + '...', 'pairing');
+  fetch('/manual?addr=' + encodeURIComponent(a) + '&code=' + encodeURIComponent(c))
+    .catch(() => {});
+}
+
+/* ---- Forget saved device ---- */
+function forgetDevice() {
+  fetch('/forget').then(r => r.json()).then(d => {
+    if (d.ok) {
+      document.getElementById('app').classList.remove('has-saved');
+      setStatusUI('Device forgotten', 'waiting');
+    }
+  });
+}
+
+/* ---- Settings ---- */
+function toggleRecordPath() {
+  document.getElementById('recordPathRow').style.display =
+    document.getElementById('s_record').checked ? 'flex' : 'none';
+}
+
+function g(id) { return document.getElementById(id); }
+
+function readSettings() {
+  return {
+    max_size: parseInt(g('s_max_size').value) || 0,
+    bit_rate: g('s_bit_rate').value,
+    max_fps: parseInt(g('s_max_fps').value) || 0,
+    audio: g('s_audio').checked,
+    turn_screen_off: g('s_turn_screen_off').checked,
+    stay_awake: g('s_stay_awake').checked,
+    fullscreen: g('s_fullscreen').checked,
+    always_on_top: g('s_always_on_top').checked,
+    no_control: g('s_no_control').checked,
+    record: g('s_record').checked,
+    record_path: g('s_record_path').value.trim(),
+    crop: g('s_crop').value.trim(),
+    lock_video_orientation: parseInt(g('s_lock_video_orientation').value) || 0,
+    window_title: g('s_window_title').value.trim(),
+  };
+}
+
+function saveSettings(isAuto = false) {
+  const data = readSettings();
+  fetch('/settings', {
+    method: 'POST',
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' }
+  })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        if (!isAuto) setStatusUI('Settings saved', 'connected');
+      } else {
+        setStatusUI('Save failed', 'error');
+      }
+    })
+    .catch(() => setStatusUI('Save failed', 'error'));
+  toggleRecordPath();
+}
+
+/* ---- Auto-Save Listeners & Presets & Diagnostics ---- */
+function queueAutoSave() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    saveSettings(true);
+  }, 400);
+}
+
+function setupAutoSaveListeners() {
+  const formElements = [
+    's_max_size', 's_bit_rate', 's_max_fps', 's_audio', 
+    's_turn_screen_off', 's_stay_awake', 's_fullscreen', 
+    's_always_on_top', 's_no_control', 's_record', 
+    's_record_path', 's_crop', 's_lock_video_orientation', 
+    's_window_title'
+  ];
+  formElements.forEach(id => {
+    const el = g(id);
+    if (el) {
+      el.addEventListener('change', queueAutoSave);
+      if (el.type === 'text') {
+        el.addEventListener('input', queueAutoSave);
+      }
+    }
+  });
+}
+
+function applyPreset(type) {
+  if (type === 'gaming') {
+    g('s_max_size').value = "1080";
+    g('s_bit_rate').value = "8M";
+    g('s_max_fps').value = "60";
+  } else if (type === 'balanced') {
+    g('s_max_size').value = "720";
+    g('s_bit_rate').value = "4M";
+    g('s_max_fps').value = "60";
+  } else if (type === 'eco') {
+    g('s_max_size').value = "480";
+    g('s_bit_rate').value = "2M";
+    g('s_max_fps').value = "30";
+  }
+  saveSettings();
+}
+
+function pollLogs() {
+  const panel = document.getElementById('logsPanel');
+  if (!panel || !panel.open) return;
+  fetch('/logs')
+    .then(r => r.json())
+    .then(d => {
+      const consoleEl = document.getElementById('logsConsole');
+      if (consoleEl && d.logs) {
+        const isScrolledToBottom = consoleEl.scrollHeight - consoleEl.clientHeight <= consoleEl.scrollTop + 20;
+        consoleEl.textContent = d.logs.join('\n');
+        if (isScrolledToBottom) {
+          consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+      }
+    })
+    .catch(() => {});
+}
+
+function pollDevices() {
+  fetch('/devices')
+    .then(r => r.json())
+    .then(d => {
+      const select = document.getElementById('deviceSelect');
+      const row = document.getElementById('deviceSelectorRow');
+      if (!select || !d.devices) return;
+      
+      if (d.devices.length > 0) {
+        row.style.display = 'flex';
+        
+        let html = '<option value="">Auto-Detect Device</option>';
+        d.devices.forEach(dev => {
+          const selectedAttr = dev.serial === currentSelectedSerial ? 'selected' : '';
+          html += `<option value="${dev.serial}" ${selectedAttr}>${dev.model} (${dev.serial})</option>`;
+        });
+        
+        const valBefore = select.value;
+        select.innerHTML = html;
+        if (currentSelectedSerial) {
+          select.value = currentSelectedSerial;
+        } else {
+          select.value = valBefore;
+        }
+      } else {
+        row.style.display = 'none';
+      }
+    })
+    .catch(() => {});
+}
+
+function switchDevice() {
+  const select = document.getElementById('deviceSelect');
+  currentSelectedSerial = select.value;
+  setStatusUI('Targeting device...', 'pairing');
+  fetch('/connect?serial=' + encodeURIComponent(currentSelectedSerial))
+    .catch(() => {});
+}
+
+function resetADB() {
+  if (!confirm("Are you sure you want to reset the ADB server? This will disconnect all mirrors.")) return;
+  setStatusUI('Resetting ADB...', 'waiting');
+  fetch('/reset_adb')
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        setStatusUI('ADB Reset OK', 'waiting');
+      } else {
+        setStatusUI('ADB Reset failed', 'error');
+      }
+    })
+    .catch(() => setStatusUI('ADB Reset failed', 'error'));
+}
+
+/* ---- Boot ---- */
+init();
+</script>
+</body>
+</html>
