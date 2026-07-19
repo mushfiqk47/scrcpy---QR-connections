@@ -39,13 +39,34 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ---- Bento Grid ---- */
-  .bento {
+  /* ---- Layout ---- */
+  .app-layout {
+    display: flex;
+    gap: var(--gap);
+    max-width: 980px;
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .sidebar {
+    width: 320px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+  }
+
+  .main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+  }
+
+  .main-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--gap);
-    max-width: 640px;
-    width: 100%;
   }
 
   .tile {
@@ -66,7 +87,6 @@
 
   /* ---- Header ---- */
   .tile-header {
-    grid-column: 1 / -1;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -91,7 +111,7 @@
     flex-direction: column;
     gap: 10px;
   }
-  .bento.has-saved .tile-saved { display: flex; }
+  .app-layout.has-saved .tile-saved { display: flex; }
 
   .saved-ip {
     font-size: 18px;
@@ -146,14 +166,14 @@
     justify-content: center;
     gap: 14px;
   }
-  /* When no saved device, QR spans full width and gets 2 rows */
-  .bento:not(.has-saved) .tile-qr {
+  /* When no saved device, QR spans full width */
+  .app-layout:not(.has-saved) .tile-qr {
     grid-column: 1 / -1;
   }
-  .bento.has-saved .tile-qr .tile-label {
+  .app-layout.has-saved .tile-qr .tile-label {
     display: block;
   }
-  .bento:not(.has-saved) .tile-qr .tile-label {
+  .app-layout:not(.has-saved) .tile-qr .tile-label {
     display: none;
   }
 
@@ -274,33 +294,14 @@
 
   /* ---- Settings tile ---- */
   .tile-settings {
-    padding: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
   }
-  .tile-settings summary {
-    display: block;
-    padding: 20px 24px;
-    cursor: pointer;
-    font-size: 11px;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 500;
-    list-style: none;
-    transition: color 0.15s ease;
-    user-select: none;
-  }
-  .tile-settings summary::-webkit-details-marker { display: none; }
-  .tile-settings summary::after {
-    content: '+';
-    float: right;
-    font-size: 14px;
-    font-weight: 400;
-    color: var(--text-dim);
-  }
-  .tile-settings[open] summary::after { content: '-'; }
-  .tile-settings summary:hover { color: var(--text-secondary); }
   .settings-body {
-    padding: 0 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
   .setting-row {
     display: flex;
@@ -402,165 +403,176 @@
   .tile-logs summary:hover { color: var(--text-secondary); }
 
   /* ---- Responsive ---- */
-  @media (max-width: 560px) {
+  @media (max-width: 820px) {
     body { padding: 12px; }
-    .bento {
-      grid-template-columns: 1fr;
-      max-width: 400px;
+    .app-layout {
+      flex-direction: column;
+      max-width: 480px;
+      align-items: stretch;
     }
-    .tile-header,
-    .tile-saved,
-    .tile-qr,
-    .tile-status,
-    .tile-manual,
-    .tile-settings,
-    .tile-logs { grid-column: 1 !important; }
-    .bento:not(.has-saved) .tile-qr { grid-column: 1 !important; }
+    .sidebar {
+      width: 100%;
+    }
+    .main-grid {
+      grid-template-columns: 1fr;
+    }
+    .app-layout:not(.has-saved) .tile-qr {
+      grid-column: 1 !important;
+    }
   }
 </style>
 
 </head>
 <body>
 
-<div class="bento" id="app">
+<div class="app-layout" id="app">
 
-  <!-- Header -->
-  <div class="tile tile-header" style="display: flex; flex-direction: column; align-items: stretch; gap: 10px;">
-    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-      <h1>scrcpy</h1>
-      <div class="net-info" id="netInfo">loading...</div>
-    </div>
-    <div id="deviceSelectorRow" style="display: none; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--surface-raised); width: 100%;">
-      <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase;">Active Device</span>
-      <select id="deviceSelect" onchange="switchDevice()" style="background: var(--surface-input); border: 1px solid var(--surface-raised); border-radius: 6px; color: var(--text-primary); padding: 4px 8px; font-size: 11px; max-width: 200px;">
-        <option value="">Auto-Detect Device</option>
-      </select>
+  <!-- Sidebar (Left Column) -->
+  <div class="sidebar">
+    <!-- Settings Panel -->
+    <div class="tile tile-settings" id="settingsPanel">
+      <span class="tile-label">Settings</span>
+      <div class="settings-body">
+        <div class="setting-row" style="margin-bottom: 8px;">
+          <label>Quick Presets</label>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn-preset" type="button" onclick="applyPreset('gaming')">Gaming</button>
+            <button class="btn-preset" type="button" onclick="applyPreset('balanced')">Balanced</button>
+            <button class="btn-preset" type="button" onclick="applyPreset('eco')">Eco</button>
+          </div>
+        </div>
+        <div class="settings-divider"></div>
+        <div class="setting-row"><label>Max size</label>
+          <select id="s_max_size">
+            <option value="0">Original</option>
+            <option value="480">480p</option>
+            <option value="720">720p</option>
+            <option value="1080">1080p</option>
+            <option value="1440">1440p</option>
+            <option value="1920">1920p</option>
+          </select></div>
+        <div class="setting-row"><label>Bitrate</label>
+          <select id="s_bit_rate">
+            <option value="2M">2 Mbps</option>
+            <option value="4M">4 Mbps</option>
+            <option value="8M">8 Mbps</option>
+            <option value="16M">16 Mbps</option>
+            <option value="32M">32 Mbps</option>
+            <option value="50M">50 Mbps</option>
+          </select></div>
+        <div class="setting-row"><label>Max FPS</label>
+          <select id="s_max_fps">
+            <option value="30">30</option>
+            <option value="60">60</option>
+            <option value="90">90</option>
+            <option value="120">120</option>
+            <option value="0">Unlimited</option>
+          </select></div>
+        <div class="settings-divider"></div>
+        <div class="setting-row"><label>Audio</label>
+          <input type="checkbox" id="s_audio"></div>
+        <div class="setting-row"><label>Screen off</label>
+          <input type="checkbox" id="s_turn_screen_off"></div>
+        <div class="setting-row"><label>Stay awake</label>
+          <input type="checkbox" id="s_stay_awake"></div>
+        <div class="setting-row"><label>Fullscreen</label>
+          <input type="checkbox" id="s_fullscreen"></div>
+        <div class="setting-row"><label>Always on top</label>
+          <input type="checkbox" id="s_always_on_top"></div>
+        <div class="setting-row"><label>View only</label>
+          <input type="checkbox" id="s_no_control"></div>
+        <div class="settings-divider"></div>
+        <div class="setting-row"><label>Record</label>
+          <input type="checkbox" id="s_record" onchange="toggleRecordPath()"></div>
+        <div class="setting-row" id="recordPathRow" style="display:none">
+          <label>Save to</label>
+          <input type="text" id="s_record_path" placeholder="file.mp4"></div>
+        <div class="setting-row"><label>Crop</label>
+          <input type="text" id="s_crop" placeholder="W:H:X:Y"></div>
+        <div class="setting-row"><label>Orientation</label>
+          <select id="s_lock_video_orientation">
+            <option value="0">Unlocked</option>
+            <option value="1">Portrait</option>
+            <option value="2">Landscape</option>
+          </select></div>
+        <div class="setting-row"><label>Window title</label>
+          <input type="text" id="s_window_title" placeholder="default"></div>
+        <button class="btn-save" onclick="saveSettings()">Save</button>
+      </div>
     </div>
   </div>
 
-  <!-- Saved device (hidden by default, shown via .has-saved class on .bento) -->
-  <div class="tile tile-saved" id="savedTile">
-    <span class="tile-label">Saved device</span>
-    <span class="saved-ip" id="savedIp"></span>
-    <span class="saved-time" id="savedTime"></span>
-    <div class="saved-actions">
-      <button class="btn-use-saved" onclick="connectSaved()">Connect</button>
-      <button class="btn-forget" onclick="forgetDevice()">forget this device</button>
+  <!-- Main Content Area (Right Column) -->
+  <div class="main-content">
+    <!-- Header -->
+    <div class="tile tile-header" style="display: flex; flex-direction: column; align-items: stretch; gap: 10px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <h1>scrcpy</h1>
+        <div class="net-info" id="netInfo">loading...</div>
+      </div>
+      <div id="deviceSelectorRow" style="display: none; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--surface-raised); width: 100%;">
+        <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase;">Active Device</span>
+        <select id="deviceSelect" onchange="switchDevice()" style="background: var(--surface-input); border: 1px solid var(--surface-raised); border-radius: 6px; color: var(--text-primary); padding: 4px 8px; font-size: 11px; max-width: 200px;">
+          <option value="">Auto-Detect Device</option>
+        </select>
+      </div>
     </div>
-  </div>
 
-  <!-- QR Code (spans full width when no saved device) -->
-  <div class="tile tile-qr" id="qrTile">
-    <span class="tile-label">Or pair a new device</span>
-    <div class="qr-frame" id="qrFrame">
-      <img id="qrImg" src="" alt="QR code for wireless pairing">
-    </div>
-    <p class="qr-hint">Scan from <strong>Wireless debugging</strong> in Developer Settings, not your camera</p>
-  </div>
-
-  <!-- Status -->
-  <div class="tile tile-status">
-    <span class="tile-label">Status</span>
-    <div class="status-row">
-      <span class="status-dot" id="statusDot"></span>
-      <span id="statusText">Loading...</span>
-    </div>
-    <div style="display: flex; gap: 8px; margin-top: auto; padding-top: 10px; width: 100%;">
-      <button class="btn-retry" onclick="startConnect()" style="flex: 2; margin-top: 0; width: auto;">Reconnect</button>
-      <button class="btn-retry" onclick="resetADB()" style="flex: 1.2; margin-top: 0; background: var(--error-dim); color: var(--error); border: 1px solid rgba(160,96,88,0.3); width: auto;">Reset ADB</button>
-    </div>
-  </div>
-
-  <!-- Manual Pair -->
-  <div class="tile tile-manual">
-    <span class="tile-label">Manual pair</span>
-    <p class="manual-hint">If QR fails: Wireless debugging, then Pair with pairing code</p>
-    <div class="manual-fields">
-      <input type="text" id="manualAddr" placeholder="192.168.1.100:37043">
-      <input type="text" id="manualCode" placeholder="6-digit code">
-      <button class="btn-manual" onclick="manualPair()">Pair</button>
-    </div>
-  </div>
-
-  <!-- Settings -->
-  <details class="tile tile-settings" id="settingsPanel">
-    <summary>Settings</summary>
-    <div class="settings-body">
-      <div class="setting-row" style="margin-bottom: 8px;">
-        <label>Quick Presets</label>
-        <div style="display: flex; gap: 6px;">
-          <button class="btn-preset" type="button" onclick="applyPreset('gaming')">Gaming</button>
-          <button class="btn-preset" type="button" onclick="applyPreset('balanced')">Balanced</button>
-          <button class="btn-preset" type="button" onclick="applyPreset('eco')">Eco</button>
+    <!-- Main Grid containing connection status cards -->
+    <div class="main-grid">
+      <!-- Saved device (hidden by default, shown via .has-saved class on #app) -->
+      <div class="tile tile-saved" id="savedTile">
+        <span class="tile-label">Saved device</span>
+        <span class="saved-ip" id="savedIp"></span>
+        <span class="saved-time" id="savedTime"></span>
+        <div class="saved-actions">
+          <button class="btn-use-saved" onclick="connectSaved()">Connect</button>
+          <button class="btn-forget" onclick="forgetDevice()">forget this device</button>
         </div>
       </div>
-      <div class="settings-divider"></div>
-      <div class="setting-row"><label>Max size</label>
-        <select id="s_max_size">
-          <option value="0">Original</option>
-          <option value="480">480p</option>
-          <option value="720">720p</option>
-          <option value="1080">1080p</option>
-          <option value="1440">1440p</option>
-          <option value="1920">1920p</option>
-        </select></div>
-      <div class="setting-row"><label>Bitrate</label>
-        <select id="s_bit_rate">
-          <option value="2M">2 Mbps</option>
-          <option value="4M">4 Mbps</option>
-          <option value="8M">8 Mbps</option>
-          <option value="16M">16 Mbps</option>
-          <option value="32M">32 Mbps</option>
-          <option value="50M">50 Mbps</option>
-        </select></div>
-      <div class="setting-row"><label>Max FPS</label>
-        <select id="s_max_fps">
-          <option value="30">30</option>
-          <option value="60">60</option>
-          <option value="90">90</option>
-          <option value="120">120</option>
-          <option value="0">Unlimited</option>
-        </select></div>
-      <div class="settings-divider"></div>
-      <div class="setting-row"><label>Audio</label>
-        <input type="checkbox" id="s_audio"></div>
-      <div class="setting-row"><label>Screen off</label>
-        <input type="checkbox" id="s_turn_screen_off"></div>
-      <div class="setting-row"><label>Stay awake</label>
-        <input type="checkbox" id="s_stay_awake"></div>
-      <div class="setting-row"><label>Fullscreen</label>
-        <input type="checkbox" id="s_fullscreen"></div>
-      <div class="setting-row"><label>Always on top</label>
-        <input type="checkbox" id="s_always_on_top"></div>
-      <div class="setting-row"><label>View only</label>
-        <input type="checkbox" id="s_no_control"></div>
-      <div class="settings-divider"></div>
-      <div class="setting-row"><label>Record</label>
-        <input type="checkbox" id="s_record" onchange="toggleRecordPath()"></div>
-      <div class="setting-row" id="recordPathRow" style="display:none">
-        <label>Save to</label>
-        <input type="text" id="s_record_path" placeholder="file.mp4"></div>
-      <div class="setting-row"><label>Crop</label>
-        <input type="text" id="s_crop" placeholder="W:H:X:Y"></div>
-      <div class="setting-row"><label>Orientation</label>
-        <select id="s_lock_video_orientation">
-          <option value="0">Unlocked</option>
-          <option value="1">Portrait</option>
-          <option value="2">Landscape</option>
-        </select></div>
-      <div class="setting-row"><label>Window title</label>
-        <input type="text" id="s_window_title" placeholder="default"></div>
-      <button class="btn-save" onclick="saveSettings()">Save</button>
-    </div>
-  </details>
 
-  <!-- Logs & Diagnostics -->
-  <details class="tile tile-logs" id="logsPanel" style="grid-column: 1 / -1; padding: 0;">
-    <summary>Live Console Logs</summary>
-    <div style="padding: 0 24px 20px;">
-      <div id="logsConsole" style="background: var(--surface-input); border: 1px solid var(--surface-raised); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11px; height: 180px; overflow-y: auto; color: var(--text-secondary); line-height: 1.5; white-space: pre-wrap;">loading logs...</div>
+      <!-- QR Code (spans full width when no saved device) -->
+      <div class="tile tile-qr" id="qrTile">
+        <span class="tile-label">Or pair a new device</span>
+        <div class="qr-frame" id="qrFrame">
+          <img id="qrImg" src="" alt="QR code for wireless pairing">
+        </div>
+        <p class="qr-hint">Scan from <strong>Wireless debugging</strong> in Developer Settings, not your camera</p>
+      </div>
+
+      <!-- Status -->
+      <div class="tile tile-status">
+        <span class="tile-label">Status</span>
+        <div class="status-row">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Loading...</span>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: auto; padding-top: 10px; width: 100%;">
+          <button class="btn-retry" onclick="startConnect()" style="flex: 2; margin-top: 0; width: auto;">Reconnect</button>
+          <button class="btn-retry" onclick="resetADB()" style="flex: 1.2; margin-top: 0; background: var(--error-dim); color: var(--error); border: 1px solid rgba(160,96,88,0.3); width: auto;">Reset ADB</button>
+        </div>
+      </div>
+
+      <!-- Manual Pair -->
+      <div class="tile tile-manual">
+        <span class="tile-label">Manual pair</span>
+        <p class="manual-hint">If QR fails: Wireless debugging, then Pair with pairing code</p>
+        <div class="manual-fields">
+          <input type="text" id="manualAddr" placeholder="192.168.1.100:37043">
+          <input type="text" id="manualCode" placeholder="6-digit code">
+          <button class="btn-manual" onclick="manualPair()">Pair</button>
+        </div>
+      </div>
     </div>
-  </details>
+
+    <!-- Logs & Diagnostics -->
+    <details class="tile tile-logs" id="logsPanel" style="grid-column: 1 / -1; padding: 0;">
+      <summary>Live Console Logs</summary>
+      <div style="padding: 0 24px 20px;">
+        <div id="logsConsole" style="background: var(--surface-input); border: 1px solid var(--surface-raised); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11px; height: 180px; overflow-y: auto; color: var(--text-secondary); line-height: 1.5; white-space: pre-wrap;">loading logs...</div>
+      </div>
+    </details>
+  </div>
 
 </div>
 
