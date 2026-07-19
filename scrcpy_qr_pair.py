@@ -14,7 +14,6 @@ import collections
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
-import ctypes
 import sys
 
 SCRIPT_DIR = Path(__file__).parent
@@ -46,6 +45,24 @@ DEFAULT_CONFIG = {
     "always_on_top": False,
     "window_title": "",
     "no_control": False,
+    "video_source": "display",
+    "video_codec": "h264",
+    "camera_id": "",
+    "camera_facing": "any",
+    "camera_size": "",
+    "camera_fps": "",
+    "camera_torch": False,
+    "camera_high_speed": False,
+    "camera_zoom": "",
+    "audio_source": "output",
+    "audio_dup": False,
+    "audio_codec": "opus",
+    "audio_bit_rate": "",
+    "audio_buffer": "",
+    "window_borderless": False,
+    "show_touches": False,
+    "time_limit": "",
+    "screen_off_timeout": "",
 }
 
 phone_ip = ""
@@ -261,35 +278,74 @@ def get_scrcpy_cmd():
         cmd += ["-s", device_serial]
         
     cfg = app_config
-    if cfg["max_size"]:
+    if cfg.get("video_source") == "camera":
+        cmd += ["--video-source", "camera"]
+        if cfg.get("camera_id"):
+            cmd += ["--camera-id", str(cfg["camera_id"])]
+        if cfg.get("camera_facing") and cfg["camera_facing"] != "any":
+            cmd += ["--camera-facing", cfg["camera_facing"]]
+        if cfg.get("camera_size"):
+            cmd += ["--camera-size", cfg["camera_size"]]
+        if cfg.get("camera_fps"):
+            cmd += ["--camera-fps", str(cfg["camera_fps"])]
+        if cfg.get("camera_torch"):
+            cmd += ["--camera-torch"]
+        if cfg.get("camera_high_speed"):
+            cmd += ["--camera-high-speed"]
+        if cfg.get("camera_zoom"):
+            cmd += ["--camera-zoom", str(cfg["camera_zoom"])]
+
+    if cfg.get("max_size"):
         cmd += ["--max-size", str(cfg["max_size"])]
-    if cfg["bit_rate"]:
+    if cfg.get("bit_rate"):
         cmd += ["--video-bit-rate", cfg["bit_rate"]]
-    if cfg["max_fps"]:
+    if cfg.get("max_fps"):
         cmd += ["--max-fps", str(cfg["max_fps"])]
-    if not cfg["audio"]:
+    if cfg.get("video_codec"):
+        cmd += ["--video-codec", cfg["video_codec"]]
+    if not cfg.get("audio"):
         cmd += ["--no-audio"]
-    if cfg["turn_screen_off"]:
+    else:
+        if cfg.get("audio_source"):
+            cmd += ["--audio-source", cfg["audio_source"]]
+        if cfg.get("audio_dup"):
+            cmd += ["--audio-dup"]
+        if cfg.get("audio_codec"):
+            cmd += ["--audio-codec", cfg["audio_codec"]]
+        if cfg.get("audio_bit_rate"):
+            cmd += ["--audio-bit-rate", cfg["audio_bit_rate"]]
+        if cfg.get("audio_buffer"):
+            cmd += ["--audio-buffer", str(cfg["audio_buffer"])]
+
+    if cfg.get("turn_screen_off"):
         cmd += ["--turn-screen-off"]
-    if cfg["stay_awake"]:
+    if cfg.get("stay_awake"):
         cmd += ["--stay-awake"]
-    if cfg["record"] and cfg["record_path"]:
+    if cfg.get("record") and cfg.get("record_path"):
         cmd += ["--record", cfg["record_path"]]
-    elif cfg["record"]:
+    elif cfg.get("record"):
         ts = time.strftime("%Y%m%d_%H%M%S")
         cmd += ["--record", f"scrcpy_recording_{ts}.mp4"]
-    if cfg["crop"]:
+    if cfg.get("crop"):
         cmd += ["--crop", cfg["crop"]]
-    if cfg["lock_video_orientation"]:
+    if cfg.get("lock_video_orientation"):
         cmd += ["--display-orientation", str(cfg["lock_video_orientation"])]
-    if cfg["fullscreen"]:
+    if cfg.get("fullscreen"):
         cmd += ["--fullscreen"]
-    if cfg["always_on_top"]:
+    if cfg.get("always_on_top"):
         cmd += ["--always-on-top"]
-    if cfg["window_title"]:
+    if cfg.get("window_title"):
         cmd += ["--window-title", cfg["window_title"]]
-    if cfg["no_control"]:
+    if cfg.get("no_control"):
         cmd += ["--no-control"]
+    if cfg.get("window_borderless"):
+        cmd += ["--window-borderless"]
+    if cfg.get("show_touches"):
+        cmd += ["--show-touches"]
+    if cfg.get("time_limit"):
+        cmd += ["--time-limit", str(cfg["time_limit"])]
+    if cfg.get("screen_off_timeout"):
+        cmd += ["--screen-off-timeout", str(cfg["screen_off_timeout"])]
     return cmd
 
 def run_scrcpy():
@@ -755,54 +811,6 @@ def manual_pair_flow(addr, code):
 
     status_msg = "error"
 
-_tray_icon = None
-
-def get_console_hwnd():
-    if sys.platform == "win32":
-        return ctypes.windll.kernel32.GetConsoleWindow()
-    return None
-
-def hide_console():
-    hwnd = get_console_hwnd()
-    if hwnd:
-        ctypes.windll.user32.ShowWindow(hwnd, 0)
-
-def show_console():
-    hwnd = get_console_hwnd()
-    if hwnd:
-        ctypes.windll.user32.ShowWindow(hwnd, 5)
-
-def run_tray_icon():
-    global _tray_icon
-    try:
-        import pystray
-        from PIL import Image, ImageDraw
-        icon_path = SCRIPT_DIR / "scrcpy.png"
-        if not icon_path.exists():
-            # Generate a default tray icon image dynamically if scrcpy.png is missing
-            icon_image = Image.new("RGBA", (64, 64), color=(0, 0, 0, 0))
-            draw = ImageDraw.Draw(icon_image)
-            draw.rounded_rectangle([4, 4, 60, 60], radius=12, fill=(30, 28, 25, 255), outline=(197, 165, 114, 255), width=3)
-            draw.rectangle([20, 12, 44, 44], outline=(197, 165, 114, 255), width=2)
-            draw.ellipse([30, 48, 34, 52], fill=(197, 165, 114, 255))
-        else:
-            icon_image = Image.open(icon_path)
-            
-        def on_show(icon, item):
-            show_console()
-        def on_exit(icon, item):
-            icon.stop()
-            os._exit(0)
-        menu = pystray.Menu(
-            pystray.MenuItem("Show Window", on_show, default=True),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Exit", on_exit),
-        )
-        _tray_icon = pystray.Icon("scrcpy", icon_image, "scrcpy - Phone Mirror", menu)
-        _tray_icon.run()
-    except ImportError:
-        pass
-
 def try_auto_reconnect_then_mirror():
     if try_auto_reconnect():
         time.sleep(1)
@@ -929,10 +937,6 @@ def main():
         threading.Thread(target=lambda: do_pairing_flow(_pair_password), daemon=True).start()
 
     threading.Thread(target=device_monitor_loop, daemon=True).start()
-
-    time.sleep(3)
-    threading.Thread(target=run_tray_icon, daemon=True).start()
-    hide_console()
 
     while True:
         try:
