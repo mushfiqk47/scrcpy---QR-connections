@@ -514,7 +514,7 @@
             <div class="setting-row">
               <label>Video Source</label>
               <select id="s_video_source" onchange="toggleCameraSection()">
-                <option value="display">Display Screen</option>
+                <option value="display">Screen Mirror (Default)</option>
                 <option value="camera">Device Camera</option>
               </select>
             </div>
@@ -561,16 +561,42 @@
               </select>
             </div>
             <div class="setting-row">
+              <label>Video Buffer (ms)</label>
+              <input type="text" id="s_video_buffer" placeholder="0 (no buffer)">
+            </div>
+            <div class="setting-row">
               <label>Crop</label>
               <input type="text" id="s_crop" placeholder="W:H:X:Y">
             </div>
             <div class="setting-row">
-              <label>Orientation</label>
-              <select id="s_lock_video_orientation">
-                <option value="0">Unlocked</option>
-                <option value="1">Portrait</option>
-                <option value="2">Landscape</option>
+              <label>Display Orientation</label>
+              <select id="s_display_orientation">
+                <option value="0">0° (Default)</option>
+                <option value="90">90°</option>
+                <option value="180">180°</option>
+                <option value="270">270°</option>
+                <option value="flip0">Flip 0°</option>
+                <option value="flip90">Flip 90°</option>
+                <option value="flip180">Flip 180°</option>
+                <option value="flip270">Flip 270°</option>
               </select>
+            </div>
+            <div class="setting-row">
+              <label>Capture Orientation</label>
+              <select id="s_capture_orientation">
+                <option value="0">0° (Default)</option>
+                <option value="90">90°</option>
+                <option value="180">180°</option>
+                <option value="270">270°</option>
+                <option value="flip0">Flip 0°</option>
+                <option value="flip90">Flip 90°</option>
+                <option value="flip180">Flip 180°</option>
+                <option value="flip270">Flip 270°</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label>Lock Capture Orientation</label>
+              <input type="checkbox" id="s_capture_orientation_lock">
             </div>
           </div>
         </details>
@@ -579,13 +605,16 @@
         <details class="settings-section" id="sec_camera" style="display: none;">
           <summary>📷 Camera Options</summary>
           <div class="settings-section-content">
+            <div class="setting-row" style="margin-bottom: 8px; justify-content: flex-start;">
+              <span style="font-size: 11px; color: var(--text-secondary);">
+                Currently mirroring camera. <a href="#" onclick="switchToScreenMirror(); return false;" style="color: var(--accent); text-decoration: underline;">Switch to Screen Mirror</a>
+              </span>
+            </div>
             <div class="setting-row">
               <label>Facing</label>
               <select id="s_camera_facing">
-                <option value="any">Any</option>
                 <option value="front">Front</option>
                 <option value="back">Back</option>
-                <option value="external">External</option>
               </select>
             </div>
             <div class="setting-row">
@@ -603,6 +632,10 @@
             <div class="setting-row">
               <label>Camera Zoom</label>
               <input type="text" id="s_camera_zoom" placeholder="1.0">
+            </div>
+            <div class="setting-row">
+              <label>Aspect Ratio</label>
+              <input type="text" id="s_camera_ar" placeholder="4:3 or sensor">
             </div>
             <div class="setting-row">
               <label>Camera Torch</label>
@@ -633,6 +666,7 @@
                 <option value="mic-camcorder">Mic tuned for Camera</option>
                 <option value="mic-voice-recognition">Voice Recognition</option>
                 <option value="mic-voice-communication">Voice Communication</option>
+                <option value="voice-call">Voice Call</option>
               </select>
             </div>
             <div class="setting-row">
@@ -650,11 +684,12 @@
             </div>
             <div class="setting-row">
               <label>Audio Buffer (ms)</label>
-              <input type="text" id="s_audio_buffer" placeholder="0">
+              <input type="text" id="s_audio_buffer" placeholder="50 (default)">
             </div>
             <div class="setting-row">
               <label>Audio Duplication</label>
               <input type="checkbox" id="s_audio_dup">
+              <span style="font-size:10px;color:var(--text-dim);margin-left:4px" title="Only works with Playback source">ⓘ</span>
             </div>
           </div>
         </details>
@@ -696,6 +731,10 @@
               <input type="checkbox" id="s_stay_awake">
             </div>
             <div class="setting-row">
+              <label>Keep active</label>
+              <input type="checkbox" id="s_keep_active">
+            </div>
+            <div class="setting-row">
               <label>Time Limit (s)</label>
               <input type="text" id="s_time_limit" placeholder="none">
             </div>
@@ -712,11 +751,34 @@
           <div class="settings-section-content">
             <div class="setting-row">
               <label>Record Mirror</label>
-              <input type="checkbox" id="s_record" onchange="toggleRecordPath()">
+              <input type="checkbox" id="s_record" onchange="toggleRecordOptions()">
             </div>
-            <div class="setting-row" id="recordPathRow" style="display:none">
+            <div class="setting-row record-opt" style="display:none">
               <label>Save to</label>
               <input type="text" id="s_record_path" placeholder="file.mp4">
+            </div>
+            <div class="setting-row record-opt" style="display:none">
+              <label>Record Format</label>
+              <select id="s_record_format">
+                <option value="">Auto (from extension)</option>
+                <option value="mp4">MP4</option>
+                <option value="mkv">MKV</option>
+                <option value="m4a">M4A (audio)</option>
+                <option value="mka">MKA (audio)</option>
+                <option value="opus">Opus (audio)</option>
+                <option value="aac">AAC (audio)</option>
+                <option value="flac">FLAC (audio)</option>
+                <option value="wav">WAV (audio)</option>
+              </select>
+            </div>
+            <div class="setting-row record-opt" style="display:none">
+              <label>Record Orientation</label>
+              <select id="s_record_orientation">
+                <option value="0">0° (Default)</option>
+                <option value="90">90°</option>
+                <option value="180">180°</option>
+                <option value="270">270°</option>
+              </select>
             </div>
           </div>
         </details>
@@ -818,9 +880,9 @@ async function init() {
   } catch (e) {
     setStatusUI('Failed to load', 'error');
   }
-  setInterval(poll, 2000);
-  setInterval(pollDevices, 3000);
-  setInterval(pollLogs, 1500);
+  setInterval(poll, 2500);
+  setInterval(pollDevices, 5000);
+  setInterval(pollLogs, 2000);
 }
 
 /* ---- Populate all dynamic content ---- */
@@ -867,23 +929,30 @@ function applyConfig(cfg) {
   g('s_audio').checked = cfg.audio !== false;
   g('s_turn_screen_off').checked = !!cfg.turn_screen_off;
   g('s_stay_awake').checked = !!cfg.stay_awake;
+  g('s_keep_active').checked = !!cfg.keep_active;
   g('s_fullscreen').checked = !!cfg.fullscreen;
   g('s_always_on_top').checked = !!cfg.always_on_top;
   g('s_no_control').checked = !!cfg.no_control;
   g('s_record').checked = !!cfg.record;
   g('s_record_path').value = cfg.record_path || '';
+  g('s_record_format').value = cfg.record_format || '';
+  g('s_record_orientation').value = cfg.record_orientation || '0';
   g('s_crop').value = cfg.crop || '';
-  g('s_lock_video_orientation').value = String(cfg.lock_video_orientation || 0);
+  g('s_display_orientation').value = cfg.display_orientation || '0';
+  g('s_capture_orientation').value = cfg.capture_orientation || '0';
+  g('s_capture_orientation_lock').checked = !!cfg.capture_orientation_lock;
   g('s_window_title').value = cfg.window_title || '';
   
   // New Video/Camera configurations
   g('s_video_source').value = cfg.video_source || 'display';
   g('s_video_codec').value = cfg.video_codec || 'h264';
+  g('s_video_buffer').value = cfg.video_buffer || '';
   g('s_camera_facing').value = cfg.camera_facing || 'any';
   g('s_camera_id').value = cfg.camera_id || '';
   g('s_camera_size').value = cfg.camera_size || '';
   g('s_camera_fps').value = cfg.camera_fps || '';
   g('s_camera_zoom').value = cfg.camera_zoom || '';
+  g('s_camera_ar').value = cfg.camera_ar || '';
   g('s_camera_torch').checked = !!cfg.camera_torch;
   g('s_camera_high_speed').checked = !!cfg.camera_high_speed;
   
@@ -900,13 +969,19 @@ function applyConfig(cfg) {
   g('s_time_limit').value = cfg.time_limit || '';
   g('s_screen_off_timeout').value = cfg.screen_off_timeout || '';
   
-  toggleRecordPath();
+  toggleRecordOptions();
   toggleCameraSection();
 }
 
 function toggleCameraSection() {
   const source = g('s_video_source').value;
   g('sec_camera').style.display = source === 'camera' ? 'block' : 'none';
+}
+
+function switchToScreenMirror() {
+  g('s_video_source').value = 'display';
+  toggleCameraSection();
+  saveSettings();
 }
 
 /* ---- Status UI ---- */
@@ -941,10 +1016,10 @@ function connectSaved() {
 }
 
 /* ---- Retry / force new connect ---- */
-  function startConnect() {
-    setStatusUI('Connecting...', 'pairing');
-    fetch('/connect?serial=' + encodeURIComponent(currentSelectedSerial)).then(() => {});
-  }
+function startConnect() {
+  setStatusUI('Connecting...', 'pairing');
+  fetch('/connect?serial=' + encodeURIComponent(currentSelectedSerial)).then(() => {});
+}
 
 /* ---- Manual pair ---- */
 function manualPair() {
@@ -968,9 +1043,11 @@ function forgetDevice() {
 }
 
 /* ---- Settings ---- */
-function toggleRecordPath() {
-  document.getElementById('recordPathRow').style.display =
-    document.getElementById('s_record').checked ? 'flex' : 'none';
+function toggleRecordOptions() {
+  const show = document.getElementById('s_record').checked;
+  document.querySelectorAll('.record-opt').forEach(el => {
+    el.style.display = show ? 'flex' : 'none';
+  });
 }
 
 function g(id) { return document.getElementById(id); }
@@ -983,23 +1060,30 @@ function readSettings() {
     audio: g('s_audio').checked,
     turn_screen_off: g('s_turn_screen_off').checked,
     stay_awake: g('s_stay_awake').checked,
+    keep_active: g('s_keep_active').checked,
     fullscreen: g('s_fullscreen').checked,
     always_on_top: g('s_always_on_top').checked,
     no_control: g('s_no_control').checked,
     record: g('s_record').checked,
     record_path: g('s_record_path').value.trim(),
+    record_format: g('s_record_format').value,
+    record_orientation: g('s_record_orientation').value,
     crop: g('s_crop').value.trim(),
-    lock_video_orientation: parseInt(g('s_lock_video_orientation').value) || 0,
+    display_orientation: g('s_display_orientation').value,
+    capture_orientation: g('s_capture_orientation').value,
+    capture_orientation_lock: g('s_capture_orientation_lock').checked,
     window_title: g('s_window_title').value.trim(),
     
     // New Video/Camera configurations
     video_source: g('s_video_source').value,
     video_codec: g('s_video_codec').value,
+    video_buffer: parseInt(g('s_video_buffer').value) || null,
     camera_facing: g('s_camera_facing').value,
     camera_id: g('s_camera_id').value.trim(),
     camera_size: g('s_camera_size').value.trim(),
     camera_fps: parseInt(g('s_camera_fps').value) || null,
     camera_zoom: g('s_camera_zoom').value.trim(),
+    camera_ar: g('s_camera_ar').value.trim(),
     camera_torch: g('s_camera_torch').checked,
     camera_high_speed: g('s_camera_high_speed').checked,
     
@@ -1034,7 +1118,7 @@ function saveSettings(isAuto = false) {
       }
     })
     .catch(() => setStatusUI('Save failed', 'error'));
-  toggleRecordPath();
+  toggleRecordOptions();
 }
 
 /* ---- Auto-Save Listeners & Presets & Diagnostics ---- */
@@ -1048,15 +1132,16 @@ function queueAutoSave() {
 function setupAutoSaveListeners() {
   const formElements = [
     's_max_size', 's_bit_rate', 's_max_fps', 's_audio', 
-    's_turn_screen_off', 's_stay_awake', 's_fullscreen', 
+    's_turn_screen_off', 's_stay_awake', 's_keep_active', 's_fullscreen', 
     's_always_on_top', 's_no_control', 's_record', 
-    's_record_path', 's_crop', 's_lock_video_orientation', 
-    's_window_title',
+    's_record_path', 's_record_format', 's_record_orientation',
+    's_crop', 's_display_orientation', 's_capture_orientation',
+    's_capture_orientation_lock', 's_window_title',
     
     // New Video/Camera configurations
-    's_video_source', 's_video_codec', 's_camera_facing',
+    's_video_source', 's_video_codec', 's_video_buffer', 's_camera_facing',
     's_camera_id', 's_camera_size', 's_camera_fps', 's_camera_zoom',
-    's_camera_torch', 's_camera_high_speed',
+    's_camera_ar', 's_camera_torch', 's_camera_high_speed',
     
     // New Audio configurations
     's_audio_source', 's_audio_codec', 's_audio_bit_rate',

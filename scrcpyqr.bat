@@ -29,4 +29,4 @@ if errorlevel 1 (
 )
 
 echo [*] Starting...
-python scrcpy_qr_pair.py
+python main.py

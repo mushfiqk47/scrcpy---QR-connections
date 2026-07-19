@@ -1,23 +1,62 @@
-# Binaries and libraries
+# Binaries and libraries (scrcpy distribution files)
 *.exe
 *.dll
 scrcpy-server
 
-# Python cache
+# Graphics & layout assets (scrcpy distribution files)
+disconnected.png
+scrcpy.png
+
+# Scripts & launchers (scrcpy distribution files)
+open_a_terminal_here.bat
+scrcpy-noconsole.vbs
+
+# Python cache & build directories
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache/
+.tox/
+build/
+dist/
+*.egg-info/
 
-# Local settings and credential caches
+# Virtual Environments
+venv/
+.venv/
+env/
+.env
+
+# Local settings & connection cache files
 *.json
 last_ip.txt
 *.log
+
+# Multimedia recordings (scrcpy screen/audio recording files)
 *.mp4
-ananti-slop-design-skill.md
-disconnected.png
-open_a_terminal_here.bat
-scrcpy-noconsole.vbs
+*.mkv
+*.m4a
+*.mka
+*.opus
+*.aac
+*.flac
+*.wav
 
+# IDE & Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
 
-scrcpy.png
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Temporary / documentation scratch files
+ananti-slop-design-skill.md
