@@ -20,14 +20,11 @@ Copy the following files from this repository and paste them directly into your 
 *   `scrcpy_qr_pair.py`
 *   `scrcpy_ui.html`
 
-*(Optional)* You can also place an image named `scrcpy.png` in the folder to use as the system tray icon.
-
 ### Step 3: Run the Helper
 1. Make sure you have **Python 3** installed on your system.
 2. Double-click the **`scrcpyqr.bat`** file.
-   * *This batch file will automatically verify Python and install the required library packages (`qrcode[pil]`, `pillow`, and `pystray`) if they are missing.*
-3. The command prompt window will start the background server, **automatically hide itself**, and place a control icon in your Windows System Tray.
-4. A web browser window will automatically open to the control panel at `http://localhost:<port>`.
+   * *This batch file will automatically verify Python and install the required library packages (`qrcode[pil]` and `pillow`) if they are missing.*
+3. A web browser window will automatically open to the control panel at `http://localhost:<port>`.
 
 ---
 
